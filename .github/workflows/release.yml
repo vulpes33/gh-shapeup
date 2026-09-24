@@ -1,0 +1,73 @@
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  # Builds and runs every binary without releasing, to check the build before a tag.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Build the gh extension for every platform
+        run: sh script/build.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # Each binary runs on its own platform before it is released.
+  run:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - { runner: ubuntu-latest, file: gh-shapeup-linux-amd64 }
+          - { runner: ubuntu-24.04-arm, file: gh-shapeup-linux-arm64 }
+          - { runner: macos-15-intel, file: gh-shapeup-darwin-amd64 }
+          - { runner: macos-latest, file: gh-shapeup-darwin-arm64 }
+          - { runner: windows-latest, file: gh-shapeup-windows-amd64.exe }
+          - { runner: windows-11-arm, file: gh-shapeup-windows-arm64.exe }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+      - name: Print the usage, and fail without a config
+        shell: bash
+        env:
+          FILE: ${{ matrix.file }}
+        run: |
+          chmod +x "$FILE"
+          ./"$FILE" help | grep -q '^Usage: gh shapeup '
+          status=0
+          ./"$FILE" audit 2> error.txt || status=$?
+          test "$status" = 2
+          grep -q '^Cannot read the config file ' error.txt
+
+  release:
+    if: github.event_name == 'push'
+    needs: run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Release the binaries under the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
