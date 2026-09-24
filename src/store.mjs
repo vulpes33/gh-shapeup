@@ -3,7 +3,7 @@ import { ShapeUpError } from './domain.mjs';
 export const readmeHeading = '# Shape Up generated data';
 export const generatedReadme = `${readmeHeading}
 
-This orphan branch is written by github-shapeup from GitHub Actions.
+This orphan branch is written by gh-shapeup from GitHub Actions.
 Do not edit it by hand, merge it into another branch, or open pull requests against it.
 Hill positions live in the GitHub Project; this branch only keeps the SVG charts drawn from them.
 `;

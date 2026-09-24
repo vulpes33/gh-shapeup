@@ -1,9 +1,10 @@
-# github-shapeup
+# gh-shapeup
 
 Run [Shape Up](https://basecamp.com/shapeup) on GitHub Issues and Projects.
 
 - A **CLI** that creates and edits pitches, scopes, cooldowns and bugs from your issue templates,
   bets pitches on cycles, moves scopes on the hill with a reason, and audits the board for drift.
+  It installs as the gh extension `gh shapeup`.
 - A **GitHub Action** that draws each pitch's hill chart as an SVG and keeps it at the top of the pitch body.
 
 Both read one config file that names your project, its fields and your templates.
@@ -19,14 +20,14 @@ The config holds names only: issues, statuses, cycles and hill positions are alw
 | Appetite | A single-select **Appetite** field on the pitch |
 | Cycle | An iteration field **Cycle** |
 | Hill position | A Number field **Hill Position** (0–100) on each scope; empty counts as 0 |
-| Circuit breaker | `shapeup pitch break`: closes the pitch and its open scopes as not planned |
+| Circuit breaker | `gh shapeup pitch break`: closes the pitch and its open scopes as not planned |
 | Cooldown work, bugs | Issues with the `cooldown` and `bug` labels, created from their templates |
 
 Every field, option and label name above is a default and can be renamed in the config.
 
 ## Setup
 
-1. **Project and labels.** Once the config and the CLI are in place (steps 4 and 7), `shapeup init` creates the four labels, a project linked to the repository and the four fields above, all named as the config says.
+1. **Project and labels.** Once the config and the CLI are in place (steps 4 and 7), `gh shapeup init` creates the four labels, a project linked to the repository and the four fields above, all named as the config says.
    Or create them by hand on a user or organization project.
 2. **Project workflows.** In the project's Workflows, turn on *Auto-add to project* for the repository and *Auto-add sub-issues to project*.
    The API cannot turn them on, so `init` only reminds you.
@@ -39,29 +40,30 @@ Every field, option and label name above is a default and can be renamed in the 
 5. **Token.** Add a repository secret `SHAPEUP_PROJECT_TOKEN` that can read the project.
    For a user-owned project use a classic token with `read:project` and `repo`.
 6. **Workflow.** Copy [`examples/workflows/shapeup-hill.yml`](examples/workflows/shapeup-hill.yml) to `.github/workflows/`.
-7. **CLI.** Copy [`examples/shapeup.sh`](examples/shapeup.sh) into the repository.
-   It runs the CLI in Docker with your `gh` login, fetching a tagged release with `npx`.
+7. **CLI.** Run `gh extension install vulpes33/gh-shapeup`.
+   It is one binary for macOS, Linux or Windows that needs nothing but `gh`, and it uses your `gh` login.
+   `gh extension upgrade shapeup` updates it.
 
 ## CLI
 
 ```
-shapeup pitch new --title T --appetite <key> --problem … --solution … --rabbit-holes … --no-gos …
-shapeup pitch edit <number> [--title T] [section parameters] [--appetite <key>]
-shapeup pitch bet <number> --cycle "<cycle title>"
-shapeup pitch unbet <number>
-shapeup pitch break <number>
-shapeup pitch done <number>
-shapeup scope new --pitch <number> --title T --done …
-shapeup scope edit <number> [--title T] [--done …]
-shapeup scope start <number>
-shapeup scope hill <number> --position 0-100 --reason …
-shapeup scope done <number>
-shapeup cooldown new --title T --what … [--why …] --done …
-shapeup cooldown edit <number> [--title T] [section parameters]
-shapeup bug new --title T --symptom … --steps … --expected … [--environment …]
-shapeup bug edit <number> [--title T] [section parameters]
-shapeup audit [--pitch <number>]
-shapeup init [--force]
+gh shapeup pitch new --title T --appetite <key> --problem … --solution … --rabbit-holes … --no-gos …
+gh shapeup pitch edit <number> [--title T] [section parameters] [--appetite <key>]
+gh shapeup pitch bet <number> --cycle "<cycle title>"
+gh shapeup pitch unbet <number>
+gh shapeup pitch break <number>
+gh shapeup pitch done <number>
+gh shapeup scope new --pitch <number> --title T --done …
+gh shapeup scope edit <number> [--title T] [--done …]
+gh shapeup scope start <number>
+gh shapeup scope hill <number> --position 0-100 --reason …
+gh shapeup scope done <number>
+gh shapeup cooldown new --title T --what … [--why …] --done …
+gh shapeup cooldown edit <number> [--title T] [section parameters]
+gh shapeup bug new --title T --symptom … --steps … --expected … [--environment …]
+gh shapeup bug edit <number> [--title T] [section parameters]
+gh shapeup audit [--pitch <number>]
+gh shapeup init [--force]
 ```
 
 - Section parameters are set per kind in the config's `kinds`; the ones above are the defaults.
@@ -72,8 +74,9 @@ shapeup init [--force]
   A project that `init` creates gets a new number; set it in the config.
 - `audit` reports scopes without a pitch, items missing from the board, empty or contradictory statuses, cycles that differ from the pitch, and charts that no longer match the board. It exits with 1 when it finds something.
 
-The CLI reads `GH_TOKEN` and `SHAPEUP_REPOSITORY` from the environment and `.github/shapeup.json` from the working directory
-(override the path with `SHAPEUP_CONFIG`).
+The CLI asks `gh` for the token and the repository; `GH_TOKEN` and `SHAPEUP_REPOSITORY` override them.
+It reads `.github/shapeup.json` from the nearest directory at or above the working directory,
+so it runs from anywhere in the repository (override the path with `SHAPEUP_CONFIG`).
 
 ## Hill chart
 
@@ -109,9 +112,12 @@ The Action keeps this block at the top of each pitch body:
 ```
 node --test "test/*.test.mjs"
 node test/render-fixtures.mjs | python3 test/validate-svg.py
+sh script/build.sh
 ```
 
-There are no dependencies. Node 24 or later is required.
+There are no dependencies. The code runs on Node 24 or later, and `script/build.sh` compiles it with Bun
+into one binary per platform in `dist/`, named as `gh` expects.
+Pushing a `v*.*.*` tag runs every binary on its own platform and releases them under the tag.
 
 ## License
 
