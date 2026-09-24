@@ -5,6 +5,7 @@ import { Board } from './board.mjs';
 import { defaultConfigPath, loadConfig } from './config.mjs';
 import { ShapeUpError, requirePosition } from './domain.mjs';
 import { GitHub } from './github.mjs';
+import { Init } from './init.mjs';
 import { composeBody, editBody, footnoteValues, loadTemplate, sectionValues, titleFor } from './templates.mjs';
 
 export const usage = `Usage: shapeup <kind> <command> [number] [--parameter value ...]
@@ -25,15 +26,19 @@ export const usage = `Usage: shapeup <kind> <command> [number] [--parameter valu
   bug new --title T --symptom … --steps … --expected … [--environment …]
   bug edit <number> [--title T] [section parameters]
   audit [--pitch <number>]
+  init [--force]
 
 Section parameters come from the config's kinds; the ones above are the defaults.
 Every new and edit also takes --from <file> (Markdown split into ## sections) and repeated --footnote name=description.`;
 
+const flags = new Set(['force']);
+
 export function parseArgs(argv) {
   const [first, second, ...rest] = argv;
   const kind = first;
-  const action = first === 'audit' ? null : second;
-  const tokens = first === 'audit' ? [second, ...rest].filter(value => value !== undefined) : rest;
+  const bare = first === 'audit' || first === 'init';
+  const action = bare ? null : second;
+  const tokens = bare ? [second, ...rest].filter(value => value !== undefined) : rest;
   const options = {};
   const footnotes = [];
   let number = null;
@@ -41,6 +46,7 @@ export function parseArgs(argv) {
     const token = tokens[i];
     if (token.startsWith('--')) {
       const key = token.slice(2);
+      if (flags.has(key)) { options[key] = true; continue; }
       const value = tokens[i + 1];
       if (value === undefined || value.startsWith('--')) throw new ShapeUpError('input', `--${key} needs a value.`);
       if (key === 'footnote') footnotes.push(value); else options[key] = value;
@@ -107,6 +113,10 @@ export class Cli {
     const { kind, action } = args;
     const s = this.config.statuses;
     const done = message => { this.out(message); return message; };
+    if (kind === 'init') {
+      await new Init({ api: this.api, config: this.config, out: this.out }).run({ force: args.options.force === true });
+      return done('init finished');
+    }
     if (kind === 'audit') {
       await this.board.load();
       let issues = [...new Map([...await this.board.issuesWith([this.config.pitchLabel]),

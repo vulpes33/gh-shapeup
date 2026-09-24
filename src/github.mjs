@@ -9,7 +9,7 @@ export class GitHub {
     this.fetch = fetchImpl;
   }
 
-  async request(path, { method = 'GET', body, project = false, missing = false } = {}) {
+  async request(path, { method = 'GET', body, project = false, missing = false, notFound = false } = {}) {
     const token = project ? this.projectToken : this.repositoryToken;
     if (!token) throw new ShapeUpError('credential', project
       ? 'A token that can read the GitHub Project is required.' : 'A repository token is required.');
@@ -33,13 +33,14 @@ export class GitHub {
     }
     if (response.status === 204) return null;
     const result = await response.json();
-    if (result.errors?.length) throw new ShapeUpError('graphql', 'A GitHub Project GraphQL request failed. Check that the token can read the project and the repository, and the field names in the config.');
+    // With notFound, a GraphQL NOT_FOUND leaves that part of the data null instead of failing.
+    if (result.errors?.length && !(notFound && result.errors.every(error => error.type === 'NOT_FOUND'))) throw new ShapeUpError('graphql', 'A GitHub Project GraphQL request failed. Check that the token can read the project and the repository, and the field names in the config.');
     return result;
   }
 
   rest(path, options) { return this.request(`/repos/${this.repository}${path}`, options); }
-  async graphql(query, variables = {}) {
-    return (await this.request('/graphql', { method: 'POST', project: true, body: { query, variables } })).data;
+  async graphql(query, variables = {}, { notFound = false } = {}) {
+    return (await this.request('/graphql', { method: 'POST', project: true, notFound, body: { query, variables } })).data;
   }
   async pages(path) {
     const values = [];

@@ -26,8 +26,10 @@ Every field, option and label name above is a default and can be renamed in the 
 
 ## Setup
 
-1. **Project.** Create the four fields above on a user or organization project and add the repository's issues to it.
-2. **Labels.** Create `pitch`, `scope`, `cooldown` and `bug` (or your own names, set in the config).
+1. **Project and labels.** Once the config and the CLI are in place (steps 4 and 7), `shapeup init` creates the four labels, a project linked to the repository and the four fields above, all named as the config says.
+   Or create them by hand on a user or organization project.
+2. **Project workflows.** In the project's Workflows, turn on *Auto-add to project* for the repository and *Auto-add sub-issues to project*.
+   The API cannot turn them on, so `init` only reminds you.
 3. **Issue templates.** Copy [`examples/ISSUE_TEMPLATE/`](examples/ISSUE_TEMPLATE) to `.github/ISSUE_TEMPLATE/`.
    A template needs front matter with `title` (the prefix, such as `"Pitch: "`) and `labels`,
    one `## ` section per CLI parameter of its kind, and the footnote markers.
@@ -59,11 +61,15 @@ shapeup cooldown edit <number> [--title T] [section parameters]
 shapeup bug new --title T --symptom … --steps … --expected … [--environment …]
 shapeup bug edit <number> [--title T] [section parameters]
 shapeup audit [--pitch <number>]
+shapeup init [--force]
 ```
 
 - Section parameters are set per kind in the config's `kinds`; the ones above are the defaults.
 - Every `new` and `edit` also takes `--from <file>` (Markdown split into `## ` sections) and repeated `--footnote name=description`.
 - `scope hill` sets the field first and then posts the reason as a comment, which is what wakes the Action.
+- `init` creates the labels, the project and its fields that the config names, and leaves whatever already exists alone with a warning.
+  With `--force` it brings them back to the config: labels get their color and description, options are set to the config's (an option with the same name keeps its id, so items keep their values), and a field of the wrong type is deleted with its values and created again.
+  A project that `init` creates gets a new number; set it in the config.
 - `audit` reports scopes without a pitch, items missing from the board, empty or contradictory statuses, cycles that differ from the pitch, and charts that no longer match the board. It exits with 1 when it finds something.
 
 The CLI reads `GH_TOKEN` and `SHAPEUP_REPOSITORY` from the environment and `.github/shapeup.json` from the working directory
