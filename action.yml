@@ -1,4 +1,4 @@
-name: Shape Up hill chart
+name: github-shapeup
 description: Draws each pitch's hill chart from its scopes' Hill Position and keeps it in the pitch body.
 author: vulpes33
 branding:
