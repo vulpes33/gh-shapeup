@@ -1,5 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { access, readFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { audit } from './audit.mjs';
 import { Board } from './board.mjs';
 import { defaultConfigPath, loadConfig } from './config.mjs';
@@ -8,7 +10,7 @@ import { GitHub } from './github.mjs';
 import { Init } from './init.mjs';
 import { composeBody, editBody, footnoteValues, loadTemplate, sectionValues, titleFor } from './templates.mjs';
 
-export const usage = `Usage: shapeup <kind> <command> [number] [--parameter value ...]
+export const usage = `Usage: gh shapeup <kind> <command> [number] [--parameter value ...]
 
   pitch new --title T --appetite <key> --problem … --solution … --rabbit-holes … --no-gos …
   pitch edit <number> [--title T] [section parameters] [--appetite <key>]
@@ -233,17 +235,43 @@ export class Cli {
   }
 }
 
-// Runs in the repository root; the token comes from the environment, never from the command line.
+// The nearest directory at or above start that holds the config, so the CLI runs from anywhere in the repository.
+export async function findRoot(start) {
+  for (let dir = resolve(start); ; dir = dirname(dir)) {
+    try { await access(join(dir, defaultConfigPath)); return dir; } catch { /* keep climbing */ }
+    if (dirname(dir) === dir) return resolve(start);
+  }
+}
+
+const runGh = async (file, args) => (await promisify(execFile)(file, args)).stdout;
+
+// gh gives an extension no token, only GH_PATH, so the token and the repository are asked of gh.
+// GH_TOKEN and SHAPEUP_REPOSITORY override them.
+export async function credentials(env, run = runGh) {
+  const gh = env.GH_PATH || 'gh';
+  const ask = async (args, message) => {
+    let value = '';
+    let detail = '';
+    try { value = (await run(gh, args)).trim(); } catch (error) { detail = error.stderr?.trim() || error.message; }
+    if (!value) throw new ShapeUpError('credential', detail ? `${message}\n${detail}` : message);
+    return value;
+  };
+  const token = env.GH_TOKEN || await ask(['auth', 'token'], 'No token: run gh auth login, or set GH_TOKEN.');
+  const repository = env.SHAPEUP_REPOSITORY || await ask(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'],
+    'No repository: run inside a clone of a GitHub repository, or set SHAPEUP_REPOSITORY.');
+  return { token, repository };
+}
+
+// The token never comes from the command line.
 export async function main(argv = process.argv.slice(2), env = process.env) {
   const args = parseArgs(argv);
   if (!args.kind || args.kind === 'help') { console.log(usage); return 0; }
-  const config = await loadConfig(env.SHAPEUP_CONFIG || defaultConfigPath);
-  const token = env.GH_TOKEN;
-  const repository = env.SHAPEUP_REPOSITORY;
-  if (!token || !repository) throw new ShapeUpError('credential', 'GH_TOKEN and SHAPEUP_REPOSITORY must be set.');
+  const root = env.SHAPEUP_CONFIG ? process.cwd() : await findRoot(process.cwd());
+  const config = await loadConfig(env.SHAPEUP_CONFIG || join(root, defaultConfigPath));
+  const { token, repository } = await credentials(env);
   const api = new GitHub({ repository, repositoryToken: token, projectToken: token });
   const cli = new Cli({ api, board: new Board(api, config), config,
-    readTemplate: name => readFile(join(config.templateDir, name), 'utf8') });
+    readTemplate: name => readFile(resolve(root, config.templateDir, name), 'utf8') });
   const result = await cli.run(args);
   return Array.isArray(result) && result.length ? 1 : 0;
 }

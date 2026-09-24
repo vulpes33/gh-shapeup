@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Cli, parseArgs } from '../src/cli.mjs';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Cli, credentials, findRoot, parseArgs } from '../src/cli.mjs';
 import { audit } from '../src/audit.mjs';
 import { parseConfig } from '../src/config.mjs';
 
@@ -50,6 +53,28 @@ test('arguments: kind, action, number, repeated footnotes, missing values', () =
   assert.deepEqual(parseArgs(['audit', '--pitch', '10']).options, { pitch: '10' });
   assert.throws(() => parseArgs(['pitch', 'new', '--title']), { code: 'input' });
   assert.throws(() => parseArgs(['pitch', 'edit', 'x']), { code: 'input' });
+});
+
+test('credentials come from the environment first and from gh otherwise', async () => {
+  const asked = [];
+  const run = async (file, args) => { asked.push([file, ...args].join(' ')); return args[0] === 'auth' ? 'gho_x\n' : 'o/r\n'; };
+  assert.deepEqual(await credentials({ GH_TOKEN: 't', SHAPEUP_REPOSITORY: 'a/b' }, run), { token: 't', repository: 'a/b' });
+  assert.deepEqual(asked, []);
+  assert.deepEqual(await credentials({ GH_PATH: '/bin/gh' }, run), { token: 'gho_x', repository: 'o/r' });
+  assert.deepEqual(asked, ['/bin/gh auth token', '/bin/gh repo view --json nameWithOwner --jq .nameWithOwner']);
+  const failing = async () => { throw Object.assign(new Error('exit 1'), { stderr: 'not logged in\n' }); };
+  await assert.rejects(credentials({}, failing), { code: 'credential', message: 'No token: run gh auth login, or set GH_TOKEN.\nnot logged in' });
+});
+
+test('the root is the nearest directory above that holds the config', async () => {
+  const top = await mkdtemp(join(tmpdir(), 'shapeup-'));
+  const deep = join(top, 'a', 'b');
+  await mkdir(deep, { recursive: true });
+  assert.equal(await findRoot(deep), deep);
+  await mkdir(join(top, '.github'));
+  await writeFile(join(top, '.github', 'shapeup.json'), '{}');
+  assert.equal(await findRoot(deep), top);
+  assert.equal(await findRoot(top), top);
 });
 test('pitch new creates the issue from the template and puts it on the board as shaped', async () => {
   const f = fixture();
