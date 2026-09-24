@@ -1,0 +1,22 @@
+name: Shape Up hill chart
+description: Draws each pitch's hill chart from its scopes' Hill Position and keeps it in the pitch body.
+author: vulpes33
+branding:
+  icon: trending-up
+  color: green
+inputs:
+  project-token:
+    description: A token that can read the GitHub Project (a classic PAT with read:project and repo for a user-owned project). Without it the Action only warns.
+    required: false
+    default: ''
+  github-token:
+    description: The repository token used to commit the SVG to the generated branch and to update pitch bodies. Needs contents:write and issues:write.
+    required: false
+    default: ${{ github.token }}
+  config:
+    description: Path of the config file in the checked-out repository.
+    required: false
+    default: .github/shapeup.json
+runs:
+  using: node24
+  main: src/action.mjs

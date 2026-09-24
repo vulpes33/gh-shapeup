@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/vulpes33/github-shapeup/v1/config.schema.json",
+  "title": "github-shapeup config",
+  "description": "Tells the github-shapeup CLI and Action where the GitHub Project is and what its fields, options, labels and templates are called. It holds names only: issues, statuses, cycles and hill positions are always read live from GitHub, and field and option ids are looked up by these names on every run.",
+  "type": "object",
+  "required": ["projectOwner", "projectOwnerType", "projectNumber"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "projectOwner": {
+      "description": "Login of the user or organization that owns the GitHub Project (the betting table).",
+      "type": "string", "minLength": 1
+    },
+    "projectOwnerType": {
+      "description": "Whether projectOwner is a user or an organization.",
+      "enum": ["user", "organization"]
+    },
+    "projectNumber": {
+      "description": "Number of the GitHub Project, as in /users/<owner>/projects/<number>.",
+      "type": "integer", "minimum": 1
+    },
+    "statusField": {
+      "description": "Name of the project's single-select field that holds the Shape Up status.",
+      "type": "string", "minLength": 1, "default": "Status"
+    },
+    "appetiteField": {
+      "description": "Name of the project's single-select field that holds a pitch's appetite.",
+      "type": "string", "minLength": 1, "default": "Appetite"
+    },
+    "cycleField": {
+      "description": "Name of the project's iteration field whose iterations are the cycles.",
+      "type": "string", "minLength": 1, "default": "Cycle"
+    },
+    "hillField": {
+      "description": "Name of the project's Number field that holds a scope's hill position (0-100). An empty value counts as 0.",
+      "type": "string", "minLength": 1, "default": "Hill Position"
+    },
+    "statuses": {
+      "description": "Option names of the status field for each Shape Up state.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shaped": { "description": "Shaped and waiting for the betting table.", "type": "string", "default": "Shaped" },
+        "bet": { "description": "Bet on a cycle, not started.", "type": "string", "default": "Bet" },
+        "doing": { "description": "Being built.", "type": "string", "default": "In progress" },
+        "done": { "description": "Finished.", "type": "string", "default": "Done" },
+        "dropped": { "description": "Dropped or stopped by the circuit breaker.", "type": "string", "default": "Dropped" }
+      }
+    },
+    "appetites": {
+      "description": "Maps each value of the CLI's --appetite to an option name of the appetite field.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 },
+      "default": { "1": "1 cycle", "2": "2 cycles" }
+    },
+    "pitchLabel": { "description": "Label that marks a pitch issue.", "type": "string", "minLength": 1, "default": "pitch" },
+    "scopeLabel": { "description": "Label that marks a scope issue.", "type": "string", "minLength": 1, "default": "scope" },
+    "cooldownLabel": { "description": "Label that marks a cooldown issue.", "type": "string", "minLength": 1, "default": "cooldown" },
+    "bugLabel": { "description": "Label that marks a bug issue.", "type": "string", "minLength": 1, "default": "bug" },
+    "assignee": {
+      "description": "Login the CLI assigns to every issue it creates, or null for none.",
+      "type": ["string", "null"], "default": null
+    },
+    "templateDir": {
+      "description": "Folder of the issue templates the CLI reads, relative to the repository root.",
+      "type": "string", "minLength": 1, "default": ".github/ISSUE_TEMPLATE"
+    },
+    "generatedBranch": {
+      "description": "Orphan branch where the Action commits hill chart SVGs. It must start with generated/ and must not be used for anything else.",
+      "type": "string", "pattern": "^generated/[A-Za-z0-9._/-]+$", "default": "generated/shapeup"
+    },
+    "chartAlt": {
+      "description": "Alt text of the hill chart image written into pitch bodies.",
+      "type": "string", "minLength": 1, "default": "Hill chart"
+    },
+    "kinds": {
+      "description": "For each issue kind, its template file and how CLI parameters map to the template's ## section headings. Kinds left out keep their defaults.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pitch": { "$ref": "#/$defs/kind" },
+        "scope": { "$ref": "#/$defs/kind" },
+        "cooldown": { "$ref": "#/$defs/kind" },
+        "bug": { "$ref": "#/$defs/kind" }
+      }
+    }
+  },
+  "$defs": {
+    "kind": {
+      "type": "object",
+      "required": ["template", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "template": { "description": "File name of the issue template inside templateDir.", "type": "string", "minLength": 1 },
+        "sections": {
+          "description": "Maps a CLI parameter (lower-case, hyphenated) to the ## heading it fills.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9-]*$" },
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "required": {
+          "description": "Parameters that must be given when an issue of this kind is created.",
+          "type": "array", "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

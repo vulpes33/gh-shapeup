@@ -1,0 +1,27 @@
+{
+  "name": "github-shapeup",
+  "version": "1.0.0",
+  "description": "Run Shape Up on GitHub Issues and Projects: a CLI for pitches, scopes, cooldowns and bugs, and an Action that draws each pitch's hill chart.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "shapeup": "bin/shapeup.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "action.yml",
+    "config.schema.json"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vulpes33/github-shapeup.git"
+  },
+  "keywords": ["shape-up", "hill-chart", "github-projects", "github-actions"]
+}

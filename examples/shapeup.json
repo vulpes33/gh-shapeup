@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/vulpes33/github-shapeup/v1/config.schema.json",
+  "projectOwner": "octocat",
+  "projectOwnerType": "user",
+  "projectNumber": 1,
+  "assignee": "octocat"
+}
