@@ -3,7 +3,7 @@
 # The token is passed through the environment, never on the command line.
 set -eu
 
-version=v1.0.0
+version=v1.1.0
 
 root=$(git rev-parse --show-toplevel)
 cd "$root"
